@@ -29,23 +29,30 @@ def edit(request, path):
     checkout = mkdtemp(prefix="gitwiki-") # @@TODO a wiki-specific prefix
     uid = uuid.uuid4().hex
 
-    cwd = os.getcwd()
-    os.chdir(checkout)
-    try:
-        subprocess.check_call(["git", "init"])
-        subprocess.check_call(["git", "remote", "add", "origin", origin])
-        subprocess.check_call(["git", "fetch", "--depth", "1", "origin"])
-        subprocess.check_call(["git", "config", "core.sparseCheckout", "true"])
-        with open(os.path.join(checkout, 
-                               ".git", "info", 
-                               "sparse-checkout"),
-                  'w') as fp:
-            fp.write(path)
-        subprocess.check_call(["git", "checkout", "master"])
-        subprocess.check_call(["git", "checkout", "-b", "%s/%s" % (request.username, uid)])
-    finally:
-        os.chdir(cwd)
-
+    subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout, ".git"),
+                           "--work-tree=%s" % checkout,
+                           "init"])
+    subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout, ".git"),
+                           "--work-tree=%s" % checkout,
+                           "remote", "add", "origin", origin])
+    subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout, ".git"),
+                           "--work-tree=%s" % checkout,
+                           "fetch", "--depth", "1", "origin"])
+    subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout, ".git"),
+                           "--work-tree=%s" % checkout,
+                           "config", "core.sparseCheckout", "true"])
+    with open(os.path.join(checkout, 
+                           ".git", "info", 
+                           "sparse-checkout"),
+              'w') as fp:
+        fp.write(path)
+    subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout, ".git"),
+                           "--work-tree=%s" % checkout,
+                           "checkout", "master"])
+    subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout, ".git"),
+                           "--work-tree=%s" % checkout,
+                           "checkout", "-b", "%s/%s" % (request.username, uid)])
+    
     with open(os.path.join(checkout, path.replace("/", os.sep))) as fp:
         content = fp.read()
 
@@ -85,16 +92,16 @@ def commit(request, path):
     with open(os.path.join(checkout_path, path.replace("/", os.sep)), 'w') as fp:
         fp.write(request.POST['content'])
 
-    cwd = os.getcwd()
-    os.chdir(checkout_path)
-    
-    try:
-        subprocess.check_call(["git", "add", path.replace("/", os.sep)])
-        subprocess.check_call(["git", "commit", "-m", request.POST.get('commit_message', 
-                                                                       "Work in progress")])
-        subprocess.check_call(["git", "push", "origin", "%s/%s" % (request.username, checkout['id'])])
-    finally:
-        os.chdir(cwd)
+    subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout_path, ".git"),
+                           "--work-tree=%s" % checkout_path,
+                           "add", path.replace("/", os.sep)])
+    subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout_path, ".git"),
+                           "--work-tree=%s" % checkout_path,
+                           "commit", "-m", request.POST.get('commit_message', 
+                                                            "Work in progress")])
+    subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout_path, ".git"),
+                           "--work-tree=%s" % checkout_path,
+                           "push", "origin", "%s/%s" % (request.username, checkout['id'])])
 
     return "ok"
 
@@ -106,21 +113,24 @@ def save(request, path):
             })
 
     checkout_path = checkout['checkout']
-    cwd = os.getcwd()
-    os.chdir(checkout_path)
     
-    try:
-        subprocess.check_call(["git", "checkout", "master"])
-
-        with open(os.path.join(checkout_path, path.replace("/", os.sep)), 'w') as fp:
-            fp.write(request.POST['content'])
-
-
-        subprocess.check_call(["git", "add", path.replace("/", os.sep)])
-        subprocess.check_call(["git", "commit", "-m", request.POST['commit_message']])
-        subprocess.check_call(["git", "push", "--all"])
-    finally:
-        os.chdir(cwd)
+    subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout_path, ".git"),
+                           "--work-tree=%s" % checkout_path,
+                           "checkout", "master"])
+    
+    with open(os.path.join(checkout_path, path.replace("/", os.sep)), 'w') as fp:
+        fp.write(request.POST['content'])
+        
+        
+    subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout_path, ".git"),
+                           "--work-tree=%s" % checkout_path,
+                           "add", path.replace("/", os.sep)])
+    subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout_path, ".git"),
+                           "--work-tree=%s" % checkout_path,
+                           "commit", "-m", request.POST['commit_message']])
+    subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout_path, ".git"),
+                           "--work-tree=%s" % checkout_path,
+                           "push", "--all"])
 
     shutil.rmtree(checkout_path)
     request.db.checkouts.remove(checkout)
