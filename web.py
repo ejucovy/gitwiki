@@ -92,6 +92,7 @@ def commit(request, path):
         subprocess.check_call(["git", "add", path.replace("/", os.sep)])
         subprocess.check_call(["git", "commit", "-m", request.POST.get('commit_message', 
                                                                        "Work in progress")])
+        subprocess.check_call(["git", "push", "origin", "%s/%s" % (request.username, checkout['id'])])
     finally:
         os.chdir(cwd)
 
