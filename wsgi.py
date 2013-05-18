@@ -12,6 +12,8 @@ def application(environ, start_response):
 
     if path.endswith("/edit/"):
         resp = views.edit(request, path[:-6].lstrip("/"))
+    elif path.endswith("/commit/"):
+        resp = views.commit(request, path[:-8].lstrip("/"))
     elif path.endswith("/save/"):
         resp = views.save(request, path[:-6].lstrip("/"))
     elif path.startswith("/dir/"):

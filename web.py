@@ -27,6 +27,7 @@ def view(request, path):
 def edit(request, path):
     origin = request.wiki
     checkout = mkdtemp(prefix="gitwiki-") # @@TODO a wiki-specific prefix
+    uid = uuid.uuid4().hex
 
     cwd = os.getcwd()
     os.chdir(checkout)
@@ -41,13 +42,12 @@ def edit(request, path):
                   'w') as fp:
             fp.write(path)
         subprocess.check_call(["git", "checkout", "master"])
+        subprocess.check_call(["git", "checkout", "-b", "%s/%s" % (request.username, uid)])
     finally:
         os.chdir(cwd)
 
     with open(os.path.join(checkout, path.replace("/", os.sep))) as fp:
         content = fp.read()
-
-    uid = uuid.uuid4().hex
 
     request.db.checkouts.insert({
             "user": request.username,
@@ -64,12 +64,18 @@ def edit(request, path):
 <input type="text" name="commit_message" />
 <input type="submit" />
 </form>
+<form method="POST" action="/{path}/commit/">
+<textarea name="content">{content}</textarea>
+<input type="hidden" name="checkout" value="{uid}" />
+<input type="text" name="commit_message" />
+<input type="submit" value="Save and continue editing" />
+</form>
 </body>
 </html>
 """.format(content=content, uid=uid, path=path)
 
 @allow_http("POST")
-def save(request, path):
+def commit(request, path):
     checkout = request.db.checkouts.find_one({
             "user": request.username,
             "id": request.POST['checkout'],
@@ -84,8 +90,34 @@ def save(request, path):
     
     try:
         subprocess.check_call(["git", "add", path.replace("/", os.sep)])
+        subprocess.check_call(["git", "commit", "-m", request.POST.get('commit_message', 
+                                                                       "Work in progress")])
+    finally:
+        os.chdir(cwd)
+
+    return "ok"
+
+@allow_http("POST")
+def save(request, path):
+    checkout = request.db.checkouts.find_one({
+            "user": request.username,
+            "id": request.POST['checkout'],
+            })
+
+    checkout_path = checkout['checkout']
+    cwd = os.getcwd()
+    os.chdir(checkout_path)
+    
+    try:
+        subprocess.check_call(["git", "checkout", "master"])
+
+        with open(os.path.join(checkout_path, path.replace("/", os.sep)), 'w') as fp:
+            fp.write(request.POST['content'])
+
+
+        subprocess.check_call(["git", "add", path.replace("/", os.sep)])
         subprocess.check_call(["git", "commit", "-m", request.POST['commit_message']])
-        subprocess.check_call(["git", "push"])
+        subprocess.check_call(["git", "push", "--all"])
     finally:
         os.chdir(cwd)
 
@@ -103,8 +135,8 @@ def save(request, path):
     path_parts = path.split("/")[:-1]
     filename = path.split("/")[-1]
 
-    if len(path_parts) == 1:
-        operation = {"files": path_parts[0]}
+    if len(path_parts) == 0:
+        operation = {"files": filename}
     else:
         operation = {"folders": path_parts[0]}
     request.db.directory.find_and_modify(
