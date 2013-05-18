@@ -8,8 +8,20 @@ import uuid
 from utils import allow_http
 
 @allow_http("GET")
+def directory(request, path):
+    contents = request.db.directory.find_one({"folder": path})
+    return str(contents)
+
+@allow_http("GET")
 def view(request, path):
-    pass
+    page = request.db.pages.find_one({'path': path})
+    if page is None:
+        return "None"
+    return """<html>
+<body>
+{content}
+</body>
+</html>""".format(**page)
 
 @allow_http("GET")
 def edit(request, path):
@@ -79,4 +91,37 @@ def save(request, path):
 
     shutil.rmtree(checkout_path)
     request.db.checkouts.remove(checkout)
+
+    
+    request.db.pages.find_and_modify(
+            query={'path': path},
+            update={'$set': {
+                "content": request.POST['content'],
+                }},
+            upsert=True,
+            )
+    path_parts = path.split("/")[:-1]
+    filename = path.split("/")[-1]
+
+    if len(path_parts) == 1:
+        operation = {"files": path_parts[0]}
+    else:
+        operation = {"folders": path_parts[0]}
+    request.db.directory.find_and_modify(
+        query={'folder': ""},
+        update={'$addToSet': operation},
+        upsert=True,
+        )
+
+    for i in range(len(path_parts)):
+        if i == len(path_parts) - 1:
+            operation = {"files": filename}
+        else:
+            operation = {"folders": path_parts[i+1]}
+
+        request.db.directory.find_and_modify(
+            query={'folder': path_parts[i]},
+            update={'$addToSet': operation},
+            upsert=True,
+            )
     return "ok"

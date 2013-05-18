@@ -14,8 +14,10 @@ def application(environ, start_response):
         resp = views.edit(request, path[:-6].lstrip("/"))
     elif path.endswith("/save/"):
         resp = views.save(request, path[:-6].lstrip("/"))
+    elif path.startswith("/dir/"):
+        resp = views.directory(request, path[5:].strip("/"))
     else:
-        resp = views.view(request, path)
+        resp = views.view(request, path.strip("/"))
 
     return Response(resp)(environ, start_response)
 
