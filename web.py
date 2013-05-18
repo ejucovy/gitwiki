@@ -97,7 +97,8 @@ def commit(request, path):
     subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout_path, ".git"),
                            "--work-tree=%s" % checkout_path,
                            "commit", "-m", request.POST.get('commit_message', 
-                                                            "Work in progress")])
+                                                            "Work in progress"),
+                           "--author", request.username])
     subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout_path, ".git"),
                            "--work-tree=%s" % checkout_path,
                            "push", "origin", "%s/%s" % (request.username, checkout['id'])])
@@ -126,7 +127,9 @@ def save(request, path):
                            "add", path.replace("/", os.sep)])
     subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout_path, ".git"),
                            "--work-tree=%s" % checkout_path,
-                           "commit", "-m", request.POST['commit_message']])
+                           "commit", "-m", request.POST['commit_message'],
+                           "--author", request.username])
+
     subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout_path, ".git"),
                            "--work-tree=%s" % checkout_path,
                            "push", "--all"])
