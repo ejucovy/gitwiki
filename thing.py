@@ -4,5 +4,6 @@ content = {"project-home": "This is a first page", "sub/path": "You can put thin
 
 def create_form(request):
     json = request.json
-    db.init_wiki(db.Connection()[json['wiki']], json['wiki'], content, json['roles'])
+    db.init_wiki(db.Connection()[json['wiki'].replace("/", "|")],
+                 json['wiki'], content, json['roles'])
     return 
