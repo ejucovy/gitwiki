@@ -2,9 +2,16 @@ from webob import Request, Response
 import web as views
 from db import get_db, get_permissions
 
+import thing
+
 def make_application(user_getter, context_getter):
     def application(environ, start_response):
         request = Request(environ)
+
+        if request.path == "/_create/":
+            thing.create_form(request)
+            return Response("ok")(environ, start_response)
+
         user_getter(request)
         context_getter(request)
         request.permissions = get_permissions(request.db, request.role)

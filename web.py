@@ -24,7 +24,6 @@ def dispatcher(request):
 @require_permission("view")
 def directory(request, path):
     contents = request.db.directory.find_one({"folder": path})
-    print contents
     return """<html>
 <body>
 <h2>Folders</h2>
