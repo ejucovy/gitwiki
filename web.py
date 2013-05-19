@@ -147,7 +147,7 @@ def save(request, path):
     subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout_path, ".git"),
                            "--work-tree=%s" % checkout_path,
                            "commit", "-m", request.POST['commit_message'],
-                           "--author", request.username])
+                           "--author", "%s <>" % request.username])
 
     subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout_path, ".git"),
                            "--work-tree=%s" % checkout_path,
