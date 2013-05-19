@@ -4,14 +4,30 @@ import subprocess
 from tempfile import mkdtemp
 import uuid
 
-from utils import allow_http
+from utils import allow_http, require_permission
+
+def dispatcher(request):
+    path = request.path
+    if path.endswith("/edit/"):
+        resp = edit(request, path[:-6].lstrip("/"))
+    elif path.endswith("/commit/"):
+        resp = commit(request, path[:-8].lstrip("/"))
+    elif path.endswith("/save/"):
+        resp = save(request, path[:-6].lstrip("/"))
+    elif path.startswith("/dir/"):
+        resp = directory(request, path[5:].strip("/"))
+    else:
+        resp = view(request, path.strip("/"))
+    return resp
 
 @allow_http("GET")
+@require_permission("view")
 def directory(request, path):
     contents = request.db.directory.find_one({"folder": path})
     return str(contents)
 
 @allow_http("GET")
+@require_permission("view")
 def view(request, path):
     page = request.db.pages.find_one({'path': path})
     if page is None:
@@ -23,6 +39,7 @@ def view(request, path):
 </html>""".format(**page)
 
 @allow_http("GET")
+@require_permission("edit")
 def edit(request, path):
     origin = request.wiki
     checkout = mkdtemp(prefix="gitwiki-") # @@TODO a wiki-specific prefix
@@ -81,6 +98,7 @@ def edit(request, path):
 """.format(content=content, uid=uid, path=path)
 
 @allow_http("POST")
+@require_permission("edit")
 def commit(request, path):
     checkout = request.db.checkouts.find_one({
             "user": request.username,
@@ -98,7 +116,7 @@ def commit(request, path):
                            "--work-tree=%s" % checkout_path,
                            "commit", "-m", request.POST.get('commit_message', 
                                                             "Work in progress"),
-                           "--author", request.username])
+                           "--author", "%s <>" % request.username])
     subprocess.check_call(["git", "--git-dir=%s" % os.path.join(checkout_path, ".git"),
                            "--work-tree=%s" % checkout_path,
                            "push", "origin", "%s/%s" % (request.username, checkout['id'])])
@@ -106,6 +124,7 @@ def commit(request, path):
     return "ok"
 
 @allow_http("POST")
+@require_permission("edit")
 def save(request, path):
     checkout = request.db.checkouts.find_one({
             "user": request.username,
@@ -137,36 +156,5 @@ def save(request, path):
     shutil.rmtree(checkout_path)
     request.db.checkouts.remove(checkout)
 
-    
-    request.db.pages.find_and_modify(
-            query={'path': path},
-            update={'$set': {
-                "content": request.POST['content'],
-                }},
-            upsert=True,
-            )
-    path_parts = path.split("/")[:-1]
-    filename = path.split("/")[-1]
-
-    if len(path_parts) == 0:
-        operation = {"files": filename}
-    else:
-        operation = {"folders": path_parts[0]}
-    request.db.directory.find_and_modify(
-        query={'folder': ""},
-        update={'$addToSet': operation},
-        upsert=True,
-        )
-
-    for i in range(len(path_parts)):
-        if i == len(path_parts) - 1:
-            operation = {"files": filename}
-        else:
-            operation = {"folders": path_parts[i+1]}
-
-        request.db.directory.find_and_modify(
-            query={'folder': path_parts[i]},
-            update={'$addToSet': operation},
-            upsert=True,
-            )
+    update_page(request.db, path, request.POST['content'])
     return "ok"
