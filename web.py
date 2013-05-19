@@ -82,16 +82,12 @@ def edit(request, path):
 <html>
 <body>
 <form method="POST" action="/{path}/save/">
-<textarea name="content">{content}</textarea>
-<input type="hidden" name="checkout" value="{uid}" />
-<input type="text" name="commit_message" />
-<input type="submit" />
-</form>
-<form method="POST" action="/{path}/commit/">
-<textarea name="content">{content}</textarea>
-<input type="hidden" name="checkout" value="{uid}" />
-<input type="text" name="commit_message" />
-<input type="submit" value="Save and continue editing" />
+  <textarea name="content">{content}</textarea>
+  <input type="hidden" name="checkout" value="{uid}" />
+  <input type="text" name="commit_message" />
+
+  <input type="submit" formaction="/{path}/commit/" value="Save and continue editing" />
+  <input type="submit" value="Save" />
 </form>
 </body>
 </html>
