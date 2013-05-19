@@ -24,8 +24,20 @@ def dispatcher(request):
 @require_permission("view")
 def directory(request, path):
     contents = request.db.directory.find_one({"folder": path})
-    return str(contents)
-
+    print contents
+    return """<html>
+<body>
+<h2>Folders</h2>
+%s
+<h2>Files</h2>
+%s
+</body>
+</html>""" % ("".join('<div><a href="/dir/{path}/{entry}">{entry}</a></div>'.format(path=path,
+                                                                                   entry=entry) 
+                      for entry in contents.get('folders', [])),
+              "".join('<div><a href="/{path}/{entry}">{entry}</a></div>'.format(path=path,
+                                                                                entry=entry) 
+                      for entry in contents.get('files', [])))
 @allow_http("GET")
 @require_permission("view")
 def view(request, path):
